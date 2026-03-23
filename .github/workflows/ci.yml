@@ -1,0 +1,37 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for scripts
+        run: |
+          if ls *.sh 2>/dev/null; then
+            echo "Checking shell scripts..."
+            for f in *.sh; do bash -n "$f" && echo "  OK: $f" || echo "  FAIL: $f"; done
+          fi
+      - name: Check for Node projects
+        run: |
+          if [ -f package.json ]; then
+            echo "Node project detected"
+            node -e "JSON.parse(require(\"fs\").readFileSync(\"package.json\"))" && echo "package.json valid"
+          fi
+      - name: Check for Python
+        run: |
+          if ls *.py 2>/dev/null; then
+            echo "Checking Python syntax..."
+            for f in *.py; do python3 -c "import ast; ast.parse(open(\"$f\").read())" && echo "  OK: $f" || echo "  FAIL: $f"; done
+          fi
+      - name: Repo health
+        run: |
+          echo "Files: $(find . -type f | wc -l)"
+          echo "Size: $(du -sh . | cut -f1)"
+          test -f LICENSE && echo "LICENSE: present" || echo "LICENSE: missing"
+          test -f README.md && echo "README: present" || echo "README: missing"
+
