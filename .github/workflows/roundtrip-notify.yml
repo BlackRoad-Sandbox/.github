@@ -1,0 +1,36 @@
+name: Notify RoundTrip
+on:
+  push:
+    branches: [main]
+  issues:
+    types: [opened, closed]
+  pull_request:
+    types: [opened, merged, closed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to RoundTrip
+        run: |
+          EVENT="${{ github.event_name }}"
+          REPO="${{ github.repository }}"
+          ACTOR="${{ github.actor }}"
+          MSG="[$EVENT] $REPO by $ACTOR"
+          
+          if [ "$EVENT" = "push" ]; then
+            MSG="$MSG — $(echo ${{ toJSON(github.event.head_commit.message) }} | head -c 80)"
+          elif [ "$EVENT" = "issues" ]; then
+            MSG="$MSG — ${{ github.event.action }}: ${{ github.event.issue.title }}"
+          elif [ "$EVENT" = "pull_request" ]; then
+            MSG="$MSG — ${{ github.event.action }}: ${{ github.event.pull_request.title }}"
+          fi
+          
+          curl -s --max-time 10 \
+            -X POST "https://roundtrip-blackroad.amundsonalexa.workers.dev/api/chat" \
+            -H "Content-Type: application/json" \
+            -d "{\"agent\":\"scribe\",\"message\":\"$MSG\",\"channel\":\"ops\"}" \
+            > /dev/null 2>&1 || true
+          
+          echo "Notified RoundTrip: $MSG"
+
